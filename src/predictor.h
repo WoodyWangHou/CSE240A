@@ -38,6 +38,12 @@ extern const char *bpName[];
 #define WT  2			// predict T, weak taken
 #define ST  3			// predict T, strong taken
 
+// Definitions for tournament predictor chooser
+#define SL  0
+#define WL  1
+#define WG  2
+#define SG  3
+
 //------------------------------------//
 //      Predictor Configuration       //
 //------------------------------------//
@@ -66,5 +72,8 @@ uint8_t make_prediction(uint32_t pc);
 // indicates that the branch was not taken)
 //
 void train_predictor(uint32_t pc, uint8_t outcome);
+
+// free memory
+void destructor();
 
 #endif

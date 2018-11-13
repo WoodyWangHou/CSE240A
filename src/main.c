@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "predictor.h"
+#include "helpers.h"
 
 FILE *stream;
 char *buf = NULL;
@@ -61,7 +62,7 @@ handle_option(char *arg)
 // Reads a line from the input stream and extracts the
 // PC and Outcome of a branch
 //
-// Returns True if Successful 
+// Returns True if Successful
 //
 int
 read_branch(uint32_t *pc, uint8_t *outcome)
@@ -84,6 +85,9 @@ main(int argc, char *argv[])
   stream = stdin;
   bpType = STATIC;
   verbose = 0;
+
+  // run unit tests
+  unit_test();
 
   // Process cmdline Arguments
   for (int i = 1; i < argc; ++i) {
@@ -120,7 +124,7 @@ main(int argc, char *argv[])
       mispredictions++;
     }
     if (verbose != 0) {
-      printf ("%d\n", prediction);
+      printf ("PC: 0x%x, Prediction: %d, Actual Outcome: %d\n", pc, prediction, outcome);
     }
 
     // Train the predictor
@@ -136,6 +140,7 @@ main(int argc, char *argv[])
   // Cleanup
   fclose(stream);
   free(buf);
+  destructor();
 
   return 0;
 }
