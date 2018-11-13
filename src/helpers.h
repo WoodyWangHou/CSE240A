@@ -24,9 +24,18 @@ uint8_t parse_prediction_entry(uint8_t entry);
 uint8_t next_state(uint8_t curState, uint8_t outcome);
 
 // get index using pc and ghr to global prediction buffer
-uint32_t hash_ghr_to_index(uint32_t pc, uint32_t ghr, uint32_t mask);
+uint32_t xor_ghr_pc_to_index(uint32_t pc, uint32_t ghr, uint32_t mask);
+
+// get index based on ghr
+uint32_t hash_ghr_to_index(uint32_t ghr, uint32_t mask);
+
+// get index based on pc
+uint32_t hash_pc_to_index(uint32_t pc, uint32_t mask);
 
 // initialize 2-bit counters  to WN
 void init_counter(uint8_t* reg, uint32_t size);
+
+// initialize a table to 0
+void init_table(uint32_t* table, uint32_t size);
 
 #endif //CSE240A_HELPERS_H

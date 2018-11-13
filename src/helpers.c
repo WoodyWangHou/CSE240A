@@ -12,22 +12,22 @@
 */
 
 // helper to create a mask for unsigned 32 bits
-uint32_t left_shift(int bits){
-    if(bits < 0) return 0;
+uint32_t left_shift(int bits) {
+    if (bits < 0) return 0;
 
     uint32_t res = 0;
-    for(int i = 0; i < bits; i++){
+    for (int i = 0; i < bits; i++) {
         res = (res << 1) | 1;
     }
     return res;
 }
 
 // compute 2 to the power of x
-uint32_t power(int exp){
-    if(exp < 0) return 0;
+uint32_t power(int exp) {
+    if (exp < 0) return 0;
 
     uint32_t res = 1;
-    for(int i = 0; i < exp; i++){
+    for (int i = 0; i < exp; i++) {
         res = (res << 1);
     }
 
@@ -35,17 +35,17 @@ uint32_t power(int exp){
 }
 
 // parse prediction entry to get the prediction
-uint8_t parse_prediction_entry(uint8_t entry){
+uint8_t parse_prediction_entry(uint8_t entry) {
     return (entry & 2) >> 1;
 }
 
 // compute next state for 2-bit counters based on current states
-uint8_t next_state(uint8_t curState, uint8_t outcome){
-    if(curState == ST && outcome == TAKEN){
+uint8_t next_state(uint8_t curState, uint8_t outcome) {
+    if (curState == ST && outcome == TAKEN) {
         return ST;
     }
 
-    if(curState == SN && outcome == NOTTAKEN){
+    if (curState == SN && outcome == NOTTAKEN) {
         return SN;
     }
 
@@ -53,15 +53,32 @@ uint8_t next_state(uint8_t curState, uint8_t outcome){
 }
 
 // get index using pc and ghr to global prediction buffer
-uint32_t hash_ghr_to_index(uint32_t pc, uint32_t ghr, uint32_t mask){
+uint32_t xor_ghr_pc_to_index(uint32_t pc, uint32_t ghr, uint32_t mask) {
     return ((pc >> 2) & mask) ^ (ghr & mask);
 }
 
+// get index based on ghr
+uint32_t hash_ghr_to_index(uint32_t ghr, uint32_t mask) {
+    return xor_ghr_pc_to_index(0, ghr, mask);
+}
+
+// get index based on pc
+uint32_t hash_pc_to_index(uint32_t pc, uint32_t mask) {
+    return xor_ghr_pc_to_index(pc, 0, mask);
+}
+
 // initialize 2-bit counters  to WN
-void init_counter(uint8_t* reg, uint32_t size){
-  for(int i = 0; i < size; i++){
-    reg[i] = WN;
-  }
+void init_counter(uint8_t *reg, uint32_t size) {
+    for (int i = 0; i < size; i++) {
+        reg[i] = WT;
+    }
+}
+
+// initialize a table to 0
+void init_table(uint32_t *table, uint32_t size) {
+    for (uint32_t i = 0; i < size; i++) {
+        table[i] = 0;
+    }
 }
 
 /**
@@ -70,7 +87,7 @@ void init_counter(uint8_t* reg, uint32_t size){
  * */
 // unit test runner
 // Exit if there is bug in unit tests
-void unit_test(){
+void unit_test() {
     // test bitShifts
     uint32_t bitShifts = 0;
     bitShifts = left_shift(1);
@@ -120,20 +137,20 @@ void unit_test(){
     // Test gshare xor
     uint32_t index = 0;
     uint32_t mask = left_shift(13);
-    index = hash_ghr_to_index(0, power(12), mask);
-    assert_equal("hash_ghr_to_index", index, power(12));
-    index = hash_ghr_to_index(0, power(14), mask);
-    assert_equal("hash_ghr_to_index", index, 0);
-    index = hash_ghr_to_index(3, 0, mask);
-    assert_equal("hash_ghr_to_index", index, 0);
-    index = hash_ghr_to_index(4, 0, mask);
-    assert_equal("hash_ghr_to_index", index, 1);
+    index = xor_ghr_pc_to_index(0, power(12), mask);
+    assert_equal("xor_ghr_pc_to_index", index, power(12));
+    index = xor_ghr_pc_to_index(0, power(14), mask);
+    assert_equal("xor_ghr_pc_to_index", index, 0);
+    index = xor_ghr_pc_to_index(3, 0, mask);
+    assert_equal("xor_ghr_pc_to_index", index, 0);
+    index = xor_ghr_pc_to_index(4, 0, mask);
+    assert_equal("xor_ghr_pc_to_index", index, 1);
 
     // terminate if unit tests failed
-    if(failedCounter > 0){
+    if (failedCounter > 0) {
         printf("Unit Tests Failed: %d tests fail", failedCounter);
         exit(1);
-    }else{
+    } else {
         printf("All Unit Tests Passed!\n");
     }
 }
