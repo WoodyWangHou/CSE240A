@@ -186,8 +186,13 @@ train_predictor(uint32_t pc, uint8_t outcome) {
                     selectorBuffer[index] = next_state(selectorBuffer[index], predictionRes);
                     break;
                 default:
-                    // TODO: complete tournament training
+                    // predictionRes = 0 -> favor local, otherwise global
+                    predictionRes = ~(parse_prediction_entry(ghistoryBuffer[index]) ^ outcome);
+                    // update selector
+                    selectorBuffer[index] = next_state(selectorBuffer[index], predictionRes);
 
+                    // update global 2-bit counter
+                    ghistoryBuffer[index] = next_state(ghistoryBuffer[index], outcome);
                     break;
             }
 
