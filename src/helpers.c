@@ -146,6 +146,29 @@ void unit_test() {
     index = xor_ghr_pc_to_index(4, 0, mask);
     assert_equal("xor_ghr_pc_to_index", index, 1);
 
+    // Test hash_ghr_to_index
+    mask = left_shift(13);
+    index = hash_ghr_to_index(power(14), mask);
+    assert_equal("hash_ghr_to_index", index, 0);
+    index = hash_ghr_to_index(power(12), mask);
+    assert_equal("hash_ghr_to_index", index, power(12));
+    index = hash_ghr_to_index(3, mask);
+    assert_equal("hash_ghr_to_index", index, 3);
+    mask = left_shift(2);
+    index = hash_ghr_to_index(4, mask);
+    assert_equal("hash_ghr_to_index", index, 0);
+
+    // Test hash_pc_to_index
+    mask = left_shift(13);
+    index = hash_pc_to_index(power(14), mask);
+    assert_equal("hash_ghr_to_index", index, power(12));
+    index = hash_pc_to_index(power(12), mask);
+    assert_equal("hash_ghr_to_index", index, power(10));
+    index = hash_pc_to_index(3, mask);
+    assert_equal("hash_ghr_to_index", index, 0);
+    index = hash_pc_to_index(4, mask);
+    assert_equal("hash_ghr_to_index", index, 1);
+
     // terminate if unit tests failed
     if (failedCounter > 0) {
         printf("Unit Tests Failed: %d tests fail", failedCounter);

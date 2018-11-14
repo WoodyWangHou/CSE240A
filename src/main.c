@@ -87,6 +87,7 @@ main(int argc, char *argv[])
   verbose = 0;
 
   // run unit tests
+  // removed for submission
   unit_test();
 
   // Process cmdline Arguments

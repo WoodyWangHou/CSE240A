@@ -151,6 +151,7 @@ void
 train_predictor(uint32_t pc, uint8_t outcome) {
     // update predictor based on bpType
     uint32_t index = 0;
+    // update tournament
     uint32_t lindex = 0;
     uint32_t localPattern = 0;
     uint8_t localPrediction = 0;
