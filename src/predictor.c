@@ -68,6 +68,10 @@ init_predictor() {
 
     // init predictor based on bpType
     switch (bpType) {
+        case CUSTOM:
+            ghistoryBits = 9;
+            lhistoryBits = 10;
+            pcIndexBits = 10;
         case TOURNAMENT:
             // init local predictor
             phtMask = left_shift(lhistoryBits);
@@ -93,7 +97,6 @@ init_predictor() {
             ghistoryBuffer = (uint8_t *) malloc(ghrSize * sizeof(uint8_t));
             init_counter(ghistoryBuffer, ghrSize);
             break;
-        case CUSTOM:
         default:
             break;
     }
@@ -115,15 +118,20 @@ make_prediction(uint32_t pc) {
     // Make a prediction based on the bpType
     uint32_t gindex = 0;
     uint32_t lindex = 0;
+    uint32_t localPattern = 0;
     switch (bpType) {
         case STATIC:
             return TAKEN;
         case GSHARE:
             gindex = xor_ghr_pc_to_index(pc, ghr, ghrMask);
             return parse_prediction_entry(ghistoryBuffer[gindex]);
+        case CUSTOM:
+            gindex = xor_ghr_pc_to_index(pc, ghr, ghrMask);
         case TOURNAMENT:
             // query selector to choose local or global
-            gindex = hash_ghr_to_index(ghr, ghrMask);
+            if(bpType == TOURNAMENT) {
+                gindex = hash_ghr_to_index(ghr, ghrMask);
+            }
             uint8_t choice = parse_prediction_entry(selectorBuffer[gindex]);
             switch(choice){
                 case LC:
@@ -134,7 +142,6 @@ make_prediction(uint32_t pc) {
                     // global predictor
                     return parse_prediction_entry(ghistoryBuffer[gindex]);
             }
-        case CUSTOM:
         default:
             break;
     }
@@ -156,6 +163,7 @@ train_predictor(uint32_t pc, uint8_t outcome) {
     uint32_t localPattern = 0;
     uint8_t localPrediction = 0;
     uint8_t predictionRes = 0;
+    uint8_t ghrCounter = 0;
 
     uint8_t choice = 0;
     switch (bpType) {
@@ -165,22 +173,36 @@ train_predictor(uint32_t pc, uint8_t outcome) {
             ghistoryBuffer[index] = next_state(ghistoryBuffer[index], outcome);
             ghr = ((ghr << 1) | outcome) & ghrMask;
             break;
+        case CUSTOM:
+            index = xor_ghr_pc_to_index(pc, ghr, ghrMask);
         case TOURNAMENT:
             // check current selector:
-            index = hash_ghr_to_index(ghr, ghrMask);
+            if(bpType == TOURNAMENT) {
+                index = hash_ghr_to_index(ghr, ghrMask);
+            }
             choice = parse_prediction_entry(selectorBuffer[index]);
+
+            // Train local predictor
+            lindex = hash_pc_to_index(pc, pcIndexMask);
+            localPattern = pht[lindex];
+            localPrediction = lpredictionTable[localPattern];
+
+            // update local 2-bit counter
+            lpredictionTable[localPattern] = next_state(localPrediction, outcome);
+
+            // update local pattern in pht
+            pht[lindex] = ((localPattern << 1) | outcome) & phtMask;
+
+            // Train Global Predictor
+            // update global 2-bit counter
+            ghrCounter = ghistoryBuffer[index];
+            ghistoryBuffer[index] = next_state(ghistoryBuffer[index], outcome);
+
+            // update ghr
+            ghr = ((ghr << 1) | outcome) & ghrMask;
+
             switch(choice){
                 case LC:
-                    lindex = hash_pc_to_index(pc, pcIndexMask);
-                    localPattern = pht[lindex];
-                    localPrediction = lpredictionTable[localPattern];
-
-                    // update local 2-bit counter
-                    lpredictionTable[localPattern] = next_state(localPrediction, outcome);
-
-                    // update local pattern in pht
-                    pht[lindex] = ((localPattern << 1) | outcome) & phtMask;
-
                     // predictionRes = 0 -> favor local, otherwise global
                     predictionRes = parse_prediction_entry(localPrediction) ^ outcome;
                     // update selector, predictionRes = 0 -> favor local, otherwise global
@@ -188,19 +210,12 @@ train_predictor(uint32_t pc, uint8_t outcome) {
                     break;
                 default:
                     // predictionRes = 0 -> favor local, otherwise global
-                    predictionRes = ~(parse_prediction_entry(ghistoryBuffer[index]) ^ outcome);
+                    predictionRes = ~(parse_prediction_entry(ghrCounter) ^ outcome);
                     // update selector
-                    selectorBuffer[index] = next_state(selectorBuffer[index], predictionRes);
-
-                    // update global 2-bit counter
-                    ghistoryBuffer[index] = next_state(ghistoryBuffer[index], outcome);
+                    selectorBuffer[index] = next_state(ghrCounter, predictionRes);
                     break;
             }
-
-            // update ghr
-            ghr = ((ghr << 1) | outcome) & ghrMask;
             break;
-        case CUSTOM:
         default:
             break;
     }

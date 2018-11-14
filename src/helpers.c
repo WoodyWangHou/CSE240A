@@ -54,7 +54,7 @@ uint8_t next_state(uint8_t curState, uint8_t outcome) {
 
 // get index using pc and ghr to global prediction buffer
 uint32_t xor_ghr_pc_to_index(uint32_t pc, uint32_t ghr, uint32_t mask) {
-    return ((pc >> 2) & mask) ^ (ghr & mask);
+    return (pc & mask) ^ (ghr & mask);
 }
 
 // get index based on ghr
@@ -142,9 +142,9 @@ void unit_test() {
     index = xor_ghr_pc_to_index(0, power(14), mask);
     assert_equal("xor_ghr_pc_to_index", index, 0);
     index = xor_ghr_pc_to_index(3, 0, mask);
-    assert_equal("xor_ghr_pc_to_index", index, 0);
+    assert_equal("xor_ghr_pc_to_index", index, 3);
     index = xor_ghr_pc_to_index(4, 0, mask);
-    assert_equal("xor_ghr_pc_to_index", index, 1);
+    assert_equal("xor_ghr_pc_to_index", index, 4);
 
     // Test hash_ghr_to_index
     mask = left_shift(13);
@@ -161,13 +161,13 @@ void unit_test() {
     // Test hash_pc_to_index
     mask = left_shift(13);
     index = hash_pc_to_index(power(14), mask);
-    assert_equal("hash_ghr_to_index", index, power(12));
-    index = hash_pc_to_index(power(12), mask);
-    assert_equal("hash_ghr_to_index", index, power(10));
-    index = hash_pc_to_index(3, mask);
     assert_equal("hash_ghr_to_index", index, 0);
+    index = hash_pc_to_index(power(12), mask);
+    assert_equal("hash_ghr_to_index", index, power(12));
+    index = hash_pc_to_index(3, mask);
+    assert_equal("hash_ghr_to_index", index, 3);
     index = hash_pc_to_index(4, mask);
-    assert_equal("hash_ghr_to_index", index, 1);
+    assert_equal("hash_ghr_to_index", index, 4);
 
     // terminate if unit tests failed
     if (failedCounter > 0) {
