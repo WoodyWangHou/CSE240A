@@ -13,7 +13,6 @@
 const char *studentName = "Hou Wang";
 const char *studentID = "A53241783";
 const char *email = "how038@eng.ucsd.edu";
-
 //------------------------------------//
 //      Predictor Configuration       //
 //------------------------------------//
@@ -100,9 +99,6 @@ init_predictor() {
         default:
             break;
     }
-
-    printf("init successful\n");
-
 }
 
 // Make a prediction for conditional branch instruction at PC 'pc'
@@ -162,8 +158,9 @@ train_predictor(uint32_t pc, uint8_t outcome) {
     uint32_t lindex = 0;
     uint32_t localPattern = 0;
     uint8_t localPrediction = 0;
-    uint8_t predictionRes = 0;
-    uint8_t ghrCounter = 0;
+    uint8_t lpredictionRes = 0;
+    uint8_t gpredictionRes = 0;
+    uint8_t globalPrediction = 0;
 
     uint8_t choice = 0;
     switch (bpType) {
@@ -177,14 +174,10 @@ train_predictor(uint32_t pc, uint8_t outcome) {
             index = xor_ghr_pc_to_index(pc, ghr, ghrMask);
         case TOURNAMENT:
             // check current selector:
-            if(bpType == TOURNAMENT) {
-                index = hash_ghr_to_index(ghr, ghrMask);
-            }
-            choice = parse_prediction_entry(selectorBuffer[index]);
 
             // Train local predictor
             lindex = hash_pc_to_index(pc, pcIndexMask);
-            localPattern = pht[lindex];
+            localPattern = pht[lindex] & phtMask;
             localPrediction = lpredictionTable[localPattern];
 
             // update local 2-bit counter
@@ -195,26 +188,25 @@ train_predictor(uint32_t pc, uint8_t outcome) {
 
             // Train Global Predictor
             // update global 2-bit counter
-            ghrCounter = ghistoryBuffer[index];
-            ghistoryBuffer[index] = next_state(ghistoryBuffer[index], outcome);
+            if(bpType == TOURNAMENT) {
+                index = hash_ghr_to_index(ghr, ghrMask);
+            }
+            globalPrediction = ghistoryBuffer[index];
+            ghistoryBuffer[index] = next_state(globalPrediction, outcome);
 
             // update ghr
             ghr = ((ghr << 1) | outcome) & ghrMask;
 
-            switch(choice){
-                case LC:
-                    // predictionRes = 0 -> favor local, otherwise global
-                    predictionRes = parse_prediction_entry(localPrediction) ^ outcome;
-                    // update selector, predictionRes = 0 -> favor local, otherwise global
-                    selectorBuffer[index] = next_state(selectorBuffer[index], predictionRes);
-                    break;
-                default:
-                    // predictionRes = 0 -> favor local, otherwise global
-                    predictionRes = ~(parse_prediction_entry(ghrCounter) ^ outcome);
-                    // update selector
-                    selectorBuffer[index] = next_state(ghrCounter, predictionRes);
-                    break;
-            }
+            // check local and global prediction result and update selector
+            lpredictionRes = parse_prediction_entry(localPrediction) ^ outcome;
+            gpredictionRes = parse_prediction_entry(globalPrediction) ^ outcome;
+
+            // if gpredictionRes < lpredictionRes, favor global, otherwise local
+            if(gpredictionRes == < lpredictionRes){
+                selectorBuffer[index] = next_state(selectorBuffer[index], CHOOSEGL);
+            }else if(gpredictionRes > lpredictionRes){
+                selectorBuffer[index] = next_state(selectorBuffer[index], CHOOSELC);
+            }// else does not change selector
             break;
         default:
             break;

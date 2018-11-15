@@ -39,14 +39,16 @@ extern const char *bpName[];
 #define ST  3			// predict T, strong taken
 
 // Definitions for tournament predictor chooser
-#define SL  0           // predict local, strong local
-#define WL  1           // predict local, weak local
-#define WG  2           // predict global, weak global
-#define SG  3           // predict local, strong local
+#define SG  0           // predict local, strong local
+#define WG  1           // predict local, weak local
+#define WL  2           // predict global, weak global
+#define SL  3           // predict local, strong local
+#define CHOOSEGL 0      // used to train selector to favor global
+#define CHOOSELC 1      // used to train selector to favor local
 
 // Definitions for predictor selector
-#define LC 0
-#define GL 1
+#define GL 0
+#define LC 1
 
 //------------------------------------//
 //      Predictor Configuration       //
