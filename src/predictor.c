@@ -61,15 +61,11 @@ uint32_t lptSize;          // size by lhistoryBits
 //
 void
 init_predictor() {
-    //
-    //TODO: Initialize Branch Predictor Data Structures
-    //
-
     // init predictor based on bpType
     switch (bpType) {
         case CUSTOM:
-            ghistoryBits = 9;
-            lhistoryBits = 10;
+            ghistoryBits = 11;
+            lhistoryBits = 7;
             pcIndexBits = 10;
         case TOURNAMENT:
             // init local predictor
@@ -107,10 +103,6 @@ init_predictor() {
 //
 uint8_t
 make_prediction(uint32_t pc) {
-    //
-    //TODO: Implement prediction scheme
-    //
-
     // Make a prediction based on the bpType
     uint32_t gindex = 0;
     uint32_t lindex = 0;
@@ -202,7 +194,7 @@ train_predictor(uint32_t pc, uint8_t outcome) {
             gpredictionRes = parse_prediction_entry(globalPrediction) ^ outcome;
 
             // if gpredictionRes < lpredictionRes, favor global, otherwise local
-            if(gpredictionRes == < lpredictionRes){
+            if(gpredictionRes < lpredictionRes){
                 selectorBuffer[index] = next_state(selectorBuffer[index], CHOOSEGL);
             }else if(gpredictionRes > lpredictionRes){
                 selectorBuffer[index] = next_state(selectorBuffer[index], CHOOSELC);
