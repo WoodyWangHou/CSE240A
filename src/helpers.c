@@ -70,14 +70,14 @@ uint32_t hash_pc_to_index(uint32_t pc, uint32_t mask) {
 // initialize 2-bit counters  to WN
 void init_counter(uint8_t *reg, uint32_t size) {
     for (int i = 0; i < size; i++) {
-        reg[i] = WT;
+        reg[i] = WN;
     }
 }
 
 // initialize a table to 0
 void init_table(uint32_t *table, uint32_t size) {
     for (uint32_t i = 0; i < size; i++) {
-        table[i] = 0;
+        table[i] = NOTTAKEN;
     }
 }
 
