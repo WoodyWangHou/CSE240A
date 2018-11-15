@@ -53,6 +53,25 @@ uint32_t phtSize;          // equal to size of pht, 2^pcIndexBits
 uint8_t *lpredictionTable; // local prediction table, 2-bit saturating counter, size by lhistoryBits
 uint32_t lptSize;          // size by lhistoryBits
 
+//---------------------------------------------//
+//        Custom Predictor Description         //
+//---------------------------------------------//
+
+// The custom predictor use the structure of a tournament predictor, but differs in the following way:
+// In a tournament predictor, the global history table is directly indexed by a global path history.
+// In the custom predictor, I modify the indexing function to include PC as well just like Gshare.
+// Furthermore, the selector is also indexed by PC xor GHR.
+// Other than that, custom predictor use more global history bits and less local history bits.
+// Based on previous research on branch prediction, longer global history bits typically has results in
+// better correlation. Also, using PC xor GHR will result in a better hashing than using purely GHR
+// for anti-aliasing purpose.
+//
+// Based on the given memory constraints, the following parameters are chosen to maximize global history bits
+// ghistoryBits = 12, therefore GHT = 2 ^ 12 = 4 Kbits, selector = 2 ^ 12 = 4 Kbits, GHR = 12 bits
+// lhistoryBits = 7, pcIndexBits = 10, therefore LocalPatternTable = 2^10 * 7  = 7 Kbits
+// 2-bit saturating counter = 2 * 2 ^ 7 = 256 bits
+// Thus the size in total is = (4 + 4 + 7) Kbits + 256 bits + 12 bits = 268bits + 15KBits < 256bits + 16Kbits
+
 //------------------------------------//
 //        Predictor Functions         //
 //------------------------------------//
@@ -64,7 +83,7 @@ init_predictor() {
     // init predictor based on bpType
     switch (bpType) {
         case CUSTOM:
-            ghistoryBits = 11;
+            ghistoryBits = 12;
             lhistoryBits = 7;
             pcIndexBits = 10;
         case TOURNAMENT:
