@@ -85,7 +85,7 @@ main(int argc, char *argv[]) {
 
     // run unit tests
     // removed for submission
-    unit_test();
+//    unit_test();
 
     // Process cmdline Arguments
     for (int i = 1; i < argc; ++i) {
