@@ -25,6 +25,10 @@ extern const char *email;
 #define NOTTAKEN  0
 #define TAKEN     1
 
+// Perceptron TAKEN NOTTAKEN
+#define PNOTTAKEN  -1
+#define PTAKEN     1
+
 // The Different Predictor Types
 #define STATIC      0
 #define GSHARE      1
@@ -33,10 +37,10 @@ extern const char *email;
 extern const char *bpName[];
 
 // Definitions for 2-bit counters
-#define SN  0			// predict NT, strong not taken
-#define WN  1			// predict NT, weak not taken
-#define WT  2			// predict T, weak taken
-#define ST  3			// predict T, strong taken
+#define SN  0            // predict NT, strong not taken
+#define WN  1            // predict NT, weak not taken
+#define WT  2            // predict T, weak taken
+#define ST  3            // predict T, strong taken
 
 // Definitions for tournament predictor chooser
 #define SG  0           // predict local, strong local
@@ -50,6 +54,9 @@ extern const char *bpName[];
 #define GL 0
 #define LC 1
 
+// Definition of perceptron threhold
+extern int32_t theta;
+extern uint32_t perceptronBits;
 //------------------------------------//
 //      Predictor Configuration       //
 //------------------------------------//
