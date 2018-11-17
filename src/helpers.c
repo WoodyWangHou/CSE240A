@@ -4,6 +4,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include "unitTest.h"
 #include "predictor.h"
 
@@ -54,7 +55,7 @@ uint8_t next_state(uint8_t curState, uint8_t outcome) {
 
 // get index using pc and ghr to global prediction buffer
 uint32_t xor_ghr_pc_to_index(uint32_t pc, uint32_t ghr, uint32_t mask) {
-    return (pc & mask) ^ (ghr & mask);
+    return (pc ^ ghr) & mask;
 }
 
 // get index based on ghr
@@ -80,6 +81,48 @@ void init_table(uint32_t *table, uint32_t size) {
         table[i] = NOTTAKEN;
     }
 }
+
+/**
+ * Perceptrons Helpers
+ * */
+int32_t getBit(uint32_t ghr, int index) {
+    uint8_t last = (ghr >> (index - 1)) & 1;
+    return (last == 1) ? PTAKEN : PNOTTAKEN;
+}
+
+int32_t sum(uint32_t size, uint32_t ghr, int32_t *percentronEntry) {
+    int32_t s = percentronEntry[0];
+    for (int i = 1; i <= size; i++) {
+        s += percentronEntry[i] * getBit(ghr, i);
+    }
+    return s;
+}
+
+// initialize perceptron table to 0, initialization does not affect result
+void init_perceptronTable(uint32_t ghrSize, int ghistoryBits, int32_t ***perceptronTable) {
+    *perceptronTable = (int32_t **) malloc(ghrSize * sizeof(int32_t * ));
+    for (int i = 0; i < ghrSize; i++) {
+        (*perceptronTable)[i] = (int *) malloc((ghistoryBits + 1) * sizeof(int32_t));
+        memset((*perceptronTable)[i], 0, sizeof(int32_t) * (ghistoryBits + 1));
+    }
+}
+
+uint8_t parse_perceptron_entry(uint32_t ghr, int ghistoryBits, int32_t *perceptronEntry) {
+    int32_t s = sum(ghistoryBits, ghr, perceptronEntry);
+    return (s >= 0) ? TAKEN : NOTTAKEN;
+}
+
+void train_perceptron(int ghistoryBits, uint32_t ghr, int32_t outcome, int32_t *perceptronEntry, int index) {
+    int32_t yout = sum(ghistoryBits, ghr, perceptronEntry);
+    if ((yout * outcome) < 0 || abs(yout) <= theta) {
+        perceptronEntry[0] += outcome;
+        for (int i = 1; i <= ghistoryBits; i++) {
+            int32_t ghrBit = getBit(ghr, i);
+            perceptronEntry[i] += outcome * ghrBit;
+        }
+    }
+}
+
 
 /**
  * Unit Test Runner
@@ -168,6 +211,48 @@ void unit_test() {
     assert_equal("hash_ghr_to_index", index, 3);
     index = hash_pc_to_index(4, mask);
     assert_equal("hash_ghr_to_index", index, 4);
+
+    // parse perceptron
+    int32_t entry[] = {2, 1, 2, 3, 4};
+    uint32_t g = 0b0000;
+    uint32_t bits = 4;
+    uint8_t res = parse_perceptron_entry(g, bits, &entry[0]);
+    int32_t s = sum(bits, g, &entry[0]);
+    assert_equal("parse_perceptron_entry", res, NOTTAKEN);
+    assert_equal("sum", s, -8);
+
+    g = 0b0111;
+    res = parse_perceptron_entry(g, bits, &entry[0]);
+    s = sum(bits, g, &entry[0]);
+    assert_equal("parse_perceptron_entry", res, TAKEN);
+    assert_equal("sum", s, 4);
+
+    int32_t entry2[] = {2, 1, -2, -3, -4};
+    g = 0b0000;
+    res = parse_perceptron_entry(g, bits, &entry2[0]);
+    s = sum(bits, g, &entry2[0]);
+    assert_equal("parse_perceptron_entry", res, TAKEN);
+    assert_equal("sum", s, 10);
+
+    g = 0b1100;
+    res = parse_perceptron_entry(g, bits, &entry2[0]);
+    s = sum(bits, g, &entry2[0]);
+    assert_equal("parse_perceptron_entry", res, NOTTAKEN);
+    assert_equal("sum", s, -4);
+
+    //getBit
+    bits = 0b1011;
+    int32_t bit = getBit(bits, 1);
+    assert_equal("getBit", bit, PTAKEN);
+
+    bit = getBit(bits, 2);
+    assert_equal("getBit", bit, PTAKEN);
+
+    bit = getBit(bits, 3);
+    assert_equal("getBit", bit, PNOTTAKEN);
+
+    bit = getBit(bits, 4);
+    assert_equal("getBit", bit, PTAKEN);
 
     // terminate if unit tests failed
     if (failedCounter > 0) {

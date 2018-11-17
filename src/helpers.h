@@ -8,6 +8,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+/**
+ * Helpers for Gshare and Tournament
+ * */
+
 // unit tests for all helper functions
 void unit_test();
 
@@ -37,5 +41,14 @@ void init_counter(uint8_t* reg, uint32_t size);
 
 // initialize a table to 0
 void init_table(uint32_t* table, uint32_t size);
+
+/**
+ * Perceptrons Helpers
+ * */
+void init_perceptronTable(uint32_t ghrSize, int ghistoryBits, int32_t ***perceptronTable);
+uint8_t parse_perceptron_entry(uint32_t ghr, int ghistoryBits, int32_t perceptronEntry[ghistoryBits]);
+int32_t getBit(uint32_t ghr, uint32_t index);
+void train_perceptron(int ghistoryBits, uint32_t ghr, int32_t outcome, int32_t *perceptronEntry, int index);
+int32_t sum(uint32_t size, uint32_t ghr, int32_t *percentronEntry);
 
 #endif //CSE240A_HELPERS_H

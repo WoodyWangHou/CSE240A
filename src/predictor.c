@@ -6,9 +6,9 @@
 //  described in the README                               //
 //========================================================//
 #include <stdio.h>
-#include <stdlib.h>
 #include "predictor.h"
 #include "helpers.h"
+#include <math.h>
 
 const char *studentName = "Hou Wang";
 const char *studentID = "A53241783";
@@ -26,6 +26,7 @@ int lhistoryBits; // Number of bits used for Local History
 int pcIndexBits;  // Number of bits used for PC index
 int bpType;       // Branch Prediction Type
 int verbose;
+int32_t theta;
 
 //------------------------------------//
 //      Predictor Data Structures     //
@@ -53,24 +54,23 @@ uint32_t phtSize;          // equal to size of pht, 2^pcIndexBits
 uint8_t *lpredictionTable; // local prediction table, 2-bit saturating counter, size by lhistoryBits
 uint32_t lptSize;          // size by lhistoryBits
 
+// Perceptron implementation (GHR only version)
+int32_t **perceptronTable; // perceptron table
+
 //---------------------------------------------//
 //        Custom Predictor Description         //
 //---------------------------------------------//
 
-// The custom predictor use the structure of a tournament predictor, but differs in the following way:
-// In a tournament predictor, the global history table is directly indexed by a global path history.
-// In the custom predictor, I modify the indexing function to include PC as well just like Gshare.
-// Furthermore, the selector is also indexed by PC xor GHR.
-// Other than that, custom predictor use more global history bits and less local history bits.
-// Based on previous research on branch prediction, longer global history bits typically has results in
-// better correlation. Also, using PC xor GHR will result in a better hashing than using purely GHR
-// for anti-aliasing purpose.
-//
-// Based on the given memory constraints, the following parameters are chosen to maximize global history bits
-// ghistoryBits = 12, therefore GHT = 2 ^ 12 = 4 Kbits, selector = 2 ^ 12 = 4 Kbits, GHR = 12 bits
-// lhistoryBits = 7, pcIndexBits = 10, therefore LocalPatternTable = 2^10 * 7  = 7 Kbits
-// 2-bit saturating counter = 2 * 2 ^ 7 = 256 bits
-// Thus the size in total is = (4 + 4 + 7) Kbits + 256 bits + 12 bits = 268bits + 15KBits < 256bits + 16Kbits
+// The custom branch predictor is based on DANIEL A. JIME´NEZ's paper "Neural Methods for Dynamic
+// Branch Prediction". The implemented predictor is a simplified version using only global history.
+// Predictor consists of a global history register, a Perceptron Table storing weights that correspond to history bits
+// which indicate the correlation between history bits and the specific pc xor ghr address (for anti-aliasing)
+// In the design, ghistoryBits is 13 bits, thus the perceptron entry length is 14 bits (1 bit for w0)
+// Hardware Size: since there is only a perceptron table used, its size is 2^(ghistoryBits + 1) = 2^14 = 16Kbits
+// the GHR in this case is 13 bits
+// Thus the total size is 16 Kbits + 13 bits < 16 Kbits + 256 bits
+// Based on the paper, the suggested theta is floor(1.93 * ghistoryBits + 14) = 39, however after simple tuning
+// the best theta found is 29
 
 //------------------------------------//
 //        Predictor Functions         //
@@ -83,15 +83,19 @@ init_predictor() {
     // init predictor based on bpType
     switch (bpType) {
         case CUSTOM:
-            ghistoryBits = 12;
-            lhistoryBits = 7;
-            pcIndexBits = 10;
+            ghistoryBits = 13;
+            theta = 29;
+            ghr = 0;
+            ghrMask = left_shift(ghistoryBits);
+            ghrSize = power(ghistoryBits);
+            init_perceptronTable(ghrSize, ghistoryBits, &perceptronTable);
+            break;
         case TOURNAMENT:
             // init local predictor
             phtMask = left_shift(lhistoryBits);
             phtSize = power(pcIndexBits);
             pcIndexMask = left_shift(pcIndexBits);
-            pht = (uint32_t *)malloc(phtSize * sizeof(uint32_t));
+            pht = (uint32_t *) malloc(phtSize * sizeof(uint32_t));
 
             lptSize = power(lhistoryBits);
             lpredictionTable = (uint8_t *) malloc(lptSize * sizeof(uint8_t));
@@ -134,13 +138,14 @@ make_prediction(uint32_t pc) {
             return parse_prediction_entry(ghistoryBuffer[gindex]);
         case CUSTOM:
             gindex = xor_ghr_pc_to_index(pc, ghr, ghrMask);
+            return parse_perceptron_entry(ghr, ghistoryBits, perceptronTable[gindex]);
         case TOURNAMENT:
             // query selector to choose local or global
-            if(bpType == TOURNAMENT) {
+            if (bpType == TOURNAMENT) {
                 gindex = hash_ghr_to_index(ghr, ghrMask);
             }
             uint8_t choice = parse_prediction_entry(selectorBuffer[gindex]);
-            switch(choice){
+            switch (choice) {
                 case LC:
                     lindex = hash_pc_to_index(pc, pcIndexMask);
                     lindex = pht[lindex] & phtMask; // get the local pattern as index
@@ -183,6 +188,10 @@ train_predictor(uint32_t pc, uint8_t outcome) {
             break;
         case CUSTOM:
             index = xor_ghr_pc_to_index(pc, ghr, ghrMask);
+            int32_t signed_outcome = (outcome == TAKEN) ? 1 : -1;
+            train_perceptron(ghistoryBits, ghr, signed_outcome, perceptronTable[index], index);
+            ghr = ((ghr << 1) | outcome) & ghrMask;
+            break;
         case TOURNAMENT:
             // check current selector:
 
@@ -199,7 +208,7 @@ train_predictor(uint32_t pc, uint8_t outcome) {
 
             // Train Global Predictor
             // update global 2-bit counter
-            if(bpType == TOURNAMENT) {
+            if (bpType == TOURNAMENT) {
                 index = hash_ghr_to_index(ghr, ghrMask);
             }
             globalPrediction = ghistoryBuffer[index];
@@ -213,9 +222,9 @@ train_predictor(uint32_t pc, uint8_t outcome) {
             gpredictionRes = parse_prediction_entry(globalPrediction) ^ outcome;
 
             // if gpredictionRes < lpredictionRes, favor global, otherwise local
-            if(gpredictionRes < lpredictionRes){
+            if (gpredictionRes < lpredictionRes) {
                 selectorBuffer[index] = next_state(selectorBuffer[index], CHOOSEGL);
-            }else if(gpredictionRes > lpredictionRes){
+            } else if (gpredictionRes > lpredictionRes) {
                 selectorBuffer[index] = next_state(selectorBuffer[index], CHOOSELC);
             }// else does not change selector
             break;
@@ -229,4 +238,5 @@ void destructor() {
     free(selectorBuffer);
     free(pht);
     free(lpredictionTable);
+    free(perceptronTable);
 }
